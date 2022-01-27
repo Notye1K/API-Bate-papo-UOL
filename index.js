@@ -54,6 +54,23 @@ app.get('/participants', async (req, res) => {
     const usersCollection = db.collection(usersCollectionName)
     const users = await usersCollection.find({}).toArray()
     res.send(users)
+    mongoClient.close()
+})
+
+app.get('/messages', async (req, res) => {
+    const limit = req.query.limit || 0
+    const user = req.headers.User
+
+    const client = await mongoClient.connect()
+    const db = client.db(dbName)
+    const messagesCollection = db.collection(messagesCollectionName)
+    const messages = await messagesCollection.find({}).toArray()
+    const reverseMessages = messages.slice(-limit).reverse()
+
+    console.log(reverseMessages);
+    res.send(reverseMessages.filter(v => v.to === 'Todos' || v.to === user || v.from === user || v.type === 'message'
+    ))
+    mongoClient.close()
 })
 
 app.listen(5000, () => console.log('ready'))
