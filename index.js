@@ -4,6 +4,7 @@ import dotenv from "dotenv"
 import { MongoClient } from 'mongodb'
 import dayjs from 'dayjs'
 import joi from 'joi'
+import { stripHtml } from "string-strip-html";
 
 const app = express()
 app.use(json())
@@ -28,7 +29,7 @@ app.post('/participants', async (req, res) => {
             return
         }
 
-        const name = req.body.name
+        const name = stripHtml(req.body.name).result.trim()
 
         const client = await mongoClient.connect()
         const db = client.db(dbName)
@@ -47,8 +48,9 @@ app.post('/participants', async (req, res) => {
 
         res.sendStatus(201)
 
-    } catch {
+    } catch (err){
         res.sendStatus(500)
+        console.log(err);
     } finally {
         mongoClient.close()
     }
@@ -88,7 +90,7 @@ app.post('/messages', async (req, res) => {
             return
         }
 
-        const user = req.headers.user
+        const user = stripHtml(req.headers.user).result.trim()
 
         const client = await mongoClient.connect()
         const db = client.db(dbName)
@@ -101,7 +103,10 @@ app.post('/messages', async (req, res) => {
         }
 
         const messagesCollection = db.collection(messagesCollectionName)
-        const {to, text, type} = req.body
+        let {to, text, type} = req.body
+        to = stripHtml(to).result.trim()
+        text = stripHtml(text).result.trim()
+        type = stripHtml(type).result.trim()
         const time = dayjs().format('HH:mm:ss')
         await messagesCollection.insertOne({ from: user, to, text, type, time })
 
@@ -135,7 +140,7 @@ app.get('/messages', async (req, res) => {
 
 app.post('/status', async (req, res) => {
     try {
-        const name = req.headers.user
+        const name = stripHtml(req.headers.user).result.trim()
 
         const client = await mongoClient.connect()
         const db = client.db(dbName)
@@ -169,11 +174,10 @@ setInterval(async () => {
             const messagesCollection = db.collection(messagesCollectionName)
             const time = dayjs().format('HH:mm:ss')
             await messagesCollection.insertOne({ from: v.name, to: 'Todos', text: 'sai da sala...', type: 'status', time })
+            await mongoClient.close()
         })
     } catch (erro) {
         console.log(erro)
-    } finally {
-        //close
     }
 }, 15000)
 
