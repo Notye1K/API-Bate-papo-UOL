@@ -3,6 +3,7 @@ import cors from "cors"
 import dotenv from "dotenv"
 import { MongoClient } from 'mongodb'
 import dayjs from 'dayjs'
+import joi from 'joi'
 
 const app = express()
 app.use(json())
@@ -16,12 +17,18 @@ const messagesCollectionName = 'Messages'
 
 app.post('/participants', async (req, res) => {
     try {
-        const name = req.body.name
+        const schema = joi.object({
+            name: joi.string().required()
+        })
+        const validation = schema.validate(req.body, { abortEarly: false })
 
-        if (name === undefined || name === '') {
-            res.sendStatus(422)
+        if (validation.error) {
+            const erros = validation.error.details.map(v => v.message)
+            res.status(422).send(erros)
             return
         }
+
+        const name = req.body.name
 
         const client = await mongoClient.connect()
         const db = client.db(dbName)
@@ -61,6 +68,51 @@ app.get('/participants', async (req, res) => {
     }
 })
 
+app.post('/messages', async (req, res) => {
+    try {
+        const schema = joi.object(
+            {
+                to: joi.string().required(),
+                text: joi.string().required(),
+                type: joi.string().required()
+            })
+        const validation = schema.validate(req.body, { abortEarly: false })
+
+        if (validation.error) {
+            const erros = validation.error.details.map(v => v.message)
+            res.status(422).send(erros)
+            return
+        }
+        if (req.body.type !== 'message' && req.body.type !== 'private_message'){
+            res.status(422).send('type must be message or private_message')
+            return
+        }
+
+        const user = req.headers.user
+
+        const client = await mongoClient.connect()
+        const db = client.db(dbName)
+        const usersCollection = db.collection(usersCollectionName)
+        const users = await usersCollection.findOne({ user })
+
+        if(users){
+            res.status(422).send('user does not exist or has been logged out')
+            return
+        }
+
+        const messagesCollection = db.collection(messagesCollectionName)
+        const {to, text, type} = req.body
+        const time = dayjs().format('HH:mm:ss')
+        await messagesCollection.insertOne({ from: user, to, text, type, time })
+
+        res.sendStatus(201)
+    } catch {
+        res.sendStatus(500)
+    } finally{
+        mongoClient.close()
+    }
+})
+
 app.get('/messages', async (req, res) => {
     try {
         const limit = req.query.limit || 0
@@ -70,7 +122,7 @@ app.get('/messages', async (req, res) => {
         const db = client.db(dbName)
         const messagesCollection = db.collection(messagesCollectionName)
         const messages = await messagesCollection.find({}).toArray()
-        const reverseMessages = messages.slice(-limit).reverse()
+        const reverseMessages = messages.slice(-limit)
 
         res.send(reverseMessages.filter(v => v.to === 'Todos' || v.to === user || v.from === user || v.type === 'message'
         ))
@@ -121,7 +173,7 @@ setInterval(async () => {
     } catch (erro) {
         console.log(erro)
     } finally {
-        //await mongoClient.close()
+        //close
     }
 }, 15000)
 
