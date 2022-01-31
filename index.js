@@ -16,6 +16,9 @@ const dbName = 'Bate-Papo-UOL'
 const usersCollectionName = 'Users'
 const messagesCollectionName = 'Messages'
 
+const client = await mongoClient.connect()
+
+
 app.post('/participants', async (req, res) => {
     try {
         const schema = joi.object({
@@ -31,7 +34,6 @@ app.post('/participants', async (req, res) => {
 
         const name = stripHtml(req.body.name).result.trim()
 
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const usersCollection = db.collection(usersCollectionName)
         const users = await usersCollection.find({ name }).toArray()
@@ -50,22 +52,17 @@ app.post('/participants', async (req, res) => {
 
     } catch (err) {
         res.sendStatus(500)
-    } finally {
-        await mongoClient.close()
     }
 })
 
 app.get('/participants', async (req, res) => {
     try {
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const usersCollection = db.collection(usersCollectionName)
         const users = await usersCollection.find({}).toArray()
         res.send(users)
     } catch {
         res.sendStatus(500)
-    } finally {
-        await mongoClient.close()
     }
 })
 
@@ -91,7 +88,6 @@ app.post('/messages', async (req, res) => {
 
         const user = stripHtml(req.headers.user).result.trim()
 
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const usersCollection = db.collection(usersCollectionName)
         const users = await usersCollection.findOne({ name: user })
@@ -112,8 +108,6 @@ app.post('/messages', async (req, res) => {
         res.sendStatus(201)
     } catch (error) {
         res.sendStatus(500)
-    } finally {
-        await mongoClient.close()
     }
 })
 
@@ -122,7 +116,6 @@ app.get('/messages', async (req, res) => {
         const limit = req.query.limit || 0
         const user = req.headers.user
 
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const messagesCollection = db.collection(messagesCollectionName)
         const messages = await messagesCollection.find({}).toArray()
@@ -132,8 +125,6 @@ app.get('/messages', async (req, res) => {
         ))
     } catch {
         res.sendStatus(500)
-    } finally {
-        await mongoClient.close()
     }
 })
 
@@ -141,7 +132,6 @@ app.post('/status', async (req, res) => {
     try {
         const name = stripHtml(req.headers.user).result.trim()
 
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const usersCollection = db.collection(usersCollectionName)
         const user = await usersCollection.find({ name }).toArray()
@@ -155,8 +145,6 @@ app.post('/status', async (req, res) => {
         res.sendStatus(200)
     } catch (error) {
         res.sendStatus(500)
-    } finally {
-        await mongoClient.close()
     }
 })
 
@@ -169,7 +157,6 @@ app.delete('/messages/:id', async (req, res) => {
             return
         }
 
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const messagesCollection = db.collection(messagesCollectionName)
         const message = await messagesCollection.findOne({ _id: new ObjectId(id) })
@@ -189,8 +176,6 @@ app.delete('/messages/:id', async (req, res) => {
 
     } catch (error) {
         res.sendStatus(500)
-    } finally {
-        await mongoClient.close()
     }
 })
 
@@ -216,7 +201,6 @@ app.put('/messages/:id', async (req, res) => {
 
         const user = stripHtml(req.headers.user).result.trim()
 
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const usersCollection = db.collection(usersCollectionName)
         const users = await usersCollection.findOne({ name: user })
@@ -254,14 +238,11 @@ app.put('/messages/:id', async (req, res) => {
 
     } catch (error) {
         res.sendStatus(500)
-    } finally {
-        await mongoClient.close()
     }
 })
 
 setInterval(async () => {
     try {
-        const client = await mongoClient.connect()
         const db = client.db(dbName)
         const usersCollection = db.collection(usersCollectionName)
         const user = await usersCollection.find({}).toArray()
@@ -272,7 +253,6 @@ setInterval(async () => {
             const messagesCollection = db.collection(messagesCollectionName)
             const time = dayjs().format('HH:mm:ss')
             await messagesCollection.insertOne({ from: v.name, to: 'Todos', text: 'sai da sala...', type: 'status', time })
-            await mongoClient.close()
         })
     } catch (erro) {
         console.log(erro)
